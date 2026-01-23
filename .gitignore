@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+.env_local
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Data (Process Large Files separately or use DVC)
+data/
+*.csv
+*.parquet
+*.db
+sentinel.db
+
+# Models (Optional: Ignore if too large for git, use Git LFS)
+# models/*.pkl
+# For now, we will allow small models. If >100MB, uncomment above.
+
+# Logs
+infra/logs.txt
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

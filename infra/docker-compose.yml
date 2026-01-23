@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: sentinel-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - "2G"
+      - --overprovisioned
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://redpanda:29092,external://localhost:19092
+      - --pandaproxy-addr
+      - internal://0.0.0.0:8082,external://0.0.0.0:8081
+      - --advertise-pandaproxy-addr
+      - internal://redpanda:8082,external://localhost:18081
+    ports:
+      - "19092:9092"
+      - "18081:8081"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    restart: unless-stopped
+
+volumes:
+  redpanda-data:
