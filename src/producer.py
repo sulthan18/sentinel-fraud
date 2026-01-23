@@ -1,12 +1,6 @@
 """
 SentinelStream Producer
 Real-time transaction streaming from CSV to Kafka/Redpanda
-
-Features:
-- FR-01: Replay capability (reads CSV row-by-row)
-- FR-02: Rate limiting (configurable tx/sec)
-- FR-03: JSON serialization
-- FR-05: Network agnostic (Local/Cloud switch)
 """
 
 import json

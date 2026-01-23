@@ -8,7 +8,6 @@ import time
 from kafka import KafkaConsumer
 from config import get_kafka_config, TOPIC_NAME
 from model.predictor import FraudPredictor
-
 from database import init_db, insert_prediction
 
 
