@@ -1,7 +1,4 @@
-"""
-SentinelStream Producer
-Real-time transaction streaming from CSV to Kafka/Redpanda
-"""
+
 
 import json
 import time

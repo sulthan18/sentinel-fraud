@@ -1,7 +1,4 @@
-"""
-Model Predictor
-Loads trained models and provides inference for transactions.
-"""
+
 
 import os
 import joblib

@@ -1,7 +1,4 @@
-"""
-SentinelStream Dashboard
-Real-time Fraud Detection Visualization
-"""
+
 
 import time
 import pandas as pd

@@ -1,7 +1,4 @@
-"""
-ML Model Trainer for Fraud Detection
-Trains XGBoost and Isolation Forest models on credit card transaction data.
-"""
+
 
 import os
 import joblib

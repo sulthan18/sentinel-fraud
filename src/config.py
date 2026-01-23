@@ -1,5 +1,4 @@
-# SentinelStream Configuration
-# Hybrid Architecture: Local (Redpanda) / Cloud (Upstash Kafka)
+
 
 import os
 from dotenv import load_dotenv

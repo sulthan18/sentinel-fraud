@@ -1,7 +1,4 @@
-"""
-Database Handler for SentinelStream
-Manages SQLite connection and stores prediction results.
-"""
+
 
 import sqlite3
 import os

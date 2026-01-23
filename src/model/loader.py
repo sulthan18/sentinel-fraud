@@ -1,7 +1,4 @@
-"""
-Data Loader for Credit Card Fraud Detection
-Handles loading, preprocessing, and splitting of the dataset.
-"""
+
 
 import os
 import pandas as pd

@@ -1,7 +1,4 @@
-"""
-SentinelStream Consumer
-Consumes transactions from Kafka, runs inference, and updates dashboard.
-"""
+
 
 import json
 import time
