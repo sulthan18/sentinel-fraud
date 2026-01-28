@@ -28,6 +28,7 @@ SentinelStream is a scalable machine learning system for real-time fraud detecti
 | **GitOps** | ArgoCD |
 | **Monitoring** | Prometheus, Grafana |
 | **Load Testing** | Locust |
+| **Containerization** | Podman |
 
 ## 🚀 Quick Start Options
 
@@ -35,7 +36,7 @@ SentinelStream is a scalable machine learning system for real-time fraud detecti
 
 ```bash
 # Start infrastructure
-docker-compose -f infra/docker-compose.yml up -d
+podman-compose -f infra/docker-compose.yml up -d
 
 # Run producer
 ./scripts/run_producer.sh
@@ -47,7 +48,7 @@ python src/consumer.py
 
 ### Option 2: Kubernetes Deployment ⭐
 
-**Prerequisites**: Minikube, Helm, kubectl, Docker
+**Prerequisites**: Minikube, Helm, kubectl, Podman
 
 **Automated setup:**
 ```powershell
@@ -86,7 +87,7 @@ kubectl get hpa -w
 ## 🔄 GitOps Workflow
 
 Update model version:
-1. Build new image: `docker build -f infra/Dockerfile.inference -t sentinel-inference:v1.1 .`
+1. Build new image: `podman build -f infra/Dockerfile.inference -t sentinel-inference:v1.1 .`
 2. Update `helm/sentinel-ml/values.yaml` with new tag
 3. Commit and push → ArgoCD auto-deploys ✨
 

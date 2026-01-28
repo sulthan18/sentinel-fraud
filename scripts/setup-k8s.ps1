@@ -12,28 +12,28 @@ Write-Host ""
 Write-Host "Checking Minikube status..." -ForegroundColor Yellow
 try {
     $status = minikube status 2>$null
-    Write-Host "✅ Minikube is running" -ForegroundColor Green
+    Write-Host "[OK] Minikube is running" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️  Minikube not running. Starting..." -ForegroundColor Yellow
-    minikube start --cpus=4 --memory=8192 --driver=docker
+    Write-Host "[WARNING] Minikube not running. Starting..." -ForegroundColor Yellow
+    minikube start --cpus=4 --memory=8192 --driver=podman
 }
 
 # Enable metrics-server for HPA
 Write-Host ""
-Write-Host "📊 Enabling metrics-server..." -ForegroundColor Yellow
+Write-Host "Enabling metrics-server..." -ForegroundColor Yellow
 minikube addons enable metrics-server
 
-# Build and load Docker images into Minikube
+# Build and load Podman images into Minikube
 Write-Host ""
-Write-Host "🐳 Building Docker images..." -ForegroundColor Yellow
+Write-Host "Building Podman images..." -ForegroundColor Yellow
 
-# Set Docker environment to Minikube
-& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+# Set Podman environment to Minikube
+& minikube -p minikube podman-env --shell powershell | Invoke-Expression
 
-docker build -f infra\Dockerfile.inference -t sentinel-inference:latest .
-docker build -f infra\Dockerfile.consumer -t sentinel-consumer:latest .
+podman build -f infra\Dockerfile.inference -t sentinel-inference:latest .
+podman build -f infra\Dockerfile.consumer -t sentinel-consumer:latest .
 
-Write-Host "✅ Docker images built and loaded into Minikube" -ForegroundColor Green
+Write-Host "[OK] Podman images built and loaded into Minikube" -ForegroundColor Green
 
 # Install kube-prometheus-stack
 Write-Host ""
