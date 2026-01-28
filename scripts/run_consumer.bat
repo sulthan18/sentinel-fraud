@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+pip install pyzmq pandas
+echo Starting Consumer (Module Mode)...
+python -m src.consumer
+pause
