@@ -1,0 +1,26 @@
+# Dockerfile for Sentinel Consumer Service
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY models/ ./models/
+
+# Create non-root user
+RUN useradd -m -u 1000 sentinel && \
+    chown -R sentinel:sentinel /app
+
+USER sentinel
+
+# Run consumer
+CMD ["python", "-u", "src/consumer.py"]

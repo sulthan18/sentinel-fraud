@@ -1,0 +1,70 @@
+# kube-prometheus-stack Helm values
+# Deploys Prometheus + Grafana with custom configuration
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    
+    # Enable ServiceMonitor discovery
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus
+    
+    # Resource allocation
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+    
+    # Storage (optional, for persistent metrics)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+grafana:
+  enabled: true
+  
+  adminPassword: admin
+  
+  # Enable dashboards from ConfigMaps
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+  
+  # Resource allocation
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Enable dark theme by default
+  grafana.ini:
+    users:
+      default_theme: dark
+    
+    dashboards:
+      default_home_dashboard_path: /tmp/dashboards/sentinel-ml-dashboard.json
+
+# Disable components we don't need for demo
+alertmanager:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+prometheusOperator:
+  enabled: true

@@ -48,14 +48,14 @@ def get_kafka_config():
 
 def print_config():
     """Display current configuration."""
+    broker_str = LOCAL_BOOTSTRAP_SERVERS if BROKER_MODE == "local" else CLOUD_BOOTSTRAP_SERVERS[:28]
+    rate_str = f"{RATE_LIMIT} tx/s"
+    
     print(f"╔══════════════════════════════════════════╗")
     print(f"║       SentinelStream Configuration       ║")
     print(f"╠══════════════════════════════════════════╣")
     print(f"║ Mode:       {BROKER_MODE.upper():>28} ║")
-    if BROKER_MODE == "local":
-        print(f"║ Broker:     {LOCAL_BOOTSTRAP_SERVERS:>28} ║")
-    else:
-        print(f"║ Broker:     {CLOUD_BOOTSTRAP_SERVERS[:28]:>28} ║")
+    print(f"║ Broker:     {broker_str:>28} ║")
     print(f"║ Topic:      {TOPIC_NAME:>28} ║")
-    print(f"║ Rate Limit: {RATE_LIMIT:>25} tx/s ║")
+    print(f"║ Rate Limit: {rate_str:>28} ║")
     print(f"╚══════════════════════════════════════════╝")

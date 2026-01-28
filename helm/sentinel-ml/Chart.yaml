@@ -1,0 +1,11 @@
+apiVersion: v2
+name: sentinel-ml
+description: Sentinel Fraud Detection ML System - Production K8s Deployment
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - machine-learning
+  - fraud-detection
+  - inference-api
+  - mlops

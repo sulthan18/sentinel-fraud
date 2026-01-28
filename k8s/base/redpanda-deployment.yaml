@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-redpanda
+  labels:
+    app: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+      - name: redpanda
+        image: docker.redpanda.com/redpandadata/redpanda:latest
+        args:
+          - redpanda
+          - start
+          - --smp
+          - "1"
+          - --memory
+          - "1G"
+          - --overprovisioned
+          - --kafka-addr
+          - internal://0.0.0.0:29092,external://0.0.0.0:9092
+          - --advertise-kafka-addr
+          - internal://sentinel-redpanda:29092,external://sentinel-redpanda:9092
+        ports:
+        - containerPort: 9092
+          name: kafka
+        - containerPort: 29092
+          name: kafka-internal
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-redpanda
+  labels:
+    app: redpanda
+spec:
+  type: ClusterIP
+  selector:
+    app: redpanda
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+  - name: kafka-internal
+    port: 29092
+    targetPort: 29092

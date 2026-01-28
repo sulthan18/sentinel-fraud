@@ -104,8 +104,8 @@ def main():
         return
     
     try:
-        # Stream with rate limiting (use limit=10000 for scale test)
-        stream_transactions(producer, limit=10000)
+        # Stream with rate limiting (change limit here: 1000 or 10000)
+        stream_transactions(producer, limit=1000)
     except KeyboardInterrupt:
         print("\n\n⚠️  Interrupted by user")
     finally:

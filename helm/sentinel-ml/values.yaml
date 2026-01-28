@@ -1,0 +1,96 @@
+# Sentinel ML System - Helm Values
+# Customize these values for different environments and ML deployment requirements
+
+# Inference API Configuration
+inference:
+  image:
+    repository: sentinel-inference
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  replicas: 3
+  
+  # Resource allocation - tune based on model size
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # Horizontal Pod Autoscaler
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+    targetMemory: 75
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+  
+  # Health check configuration
+  healthCheck:
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 20
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 2
+  
+  # Model configuration
+  model:
+    version: "v1.0"
+
+# Consumer Configuration
+consumer:
+  image:
+    repository: sentinel-consumer
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  replicas: 2
+  
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Kafka configuration
+  kafka:
+    bootstrapServers: "sentinel-redpanda:9092"
+    topic: "sentinel-transactions"
+
+# Redpanda (Kafka) Configuration
+redpanda:
+  enabled: true
+  
+  image:
+    repository: docker.redpanda.com/redpandadata/redpanda
+    tag: latest
+  
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1Gi
+    limits:
+      cpu: 500m
+      memory: 2Gi
+  
+  service:
+    type: ClusterIP
+    kafkaPort: 9092
+
+# Monitoring (Prometheus annotations)
+monitoring:
+  enabled: true
