@@ -19,13 +19,13 @@ class FraudPredictor:
     def load_models(self):
         """Load trained models from disk."""
         try:
-            print(f"📂 Loading models from: {MODELS_DIR}")
+            print(f"[INFO] Loading models from: {MODELS_DIR}")
             self.xgb_model = joblib.load(os.path.join(MODELS_DIR, 'xgboost_model.pkl'))
             self.iso_model = joblib.load(os.path.join(MODELS_DIR, 'isolation_forest.pkl'))
             self.scaler = joblib.load(os.path.join(MODELS_DIR, 'scaler.pkl'))
-            print("✅ Models loaded successfully")
+            print("[OK] Models loaded successfully")
         except FileNotFoundError as e:
-            print(f"❌ Error loading models: {e}")
+            print(f"[ERROR] Error loading models: {e}")
             raise
 
     def preprocess(self, transaction):

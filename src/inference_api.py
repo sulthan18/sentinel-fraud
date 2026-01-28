@@ -134,19 +134,19 @@ async def lifespan(app: FastAPI):
     """Load model on startup, cleanup on shutdown"""
     global predictor
     try:
-        print("🚀 Loading ML models...")
+        print("[INFO] Loading ML models...")
         predictor = FraudPredictor()
         MODEL_LOADED.set(1)
-        print("✅ Models loaded successfully")
+        print("[OK] Models loaded successfully")
     except Exception as e:
-        print(f"❌ Failed to load models: {e}")
+        print(f"[ERROR] Failed to load models: {e}")
         MODEL_LOADED.set(0)
         raise
     
     yield
     
     # Cleanup
-    print("🔄 Shutting down...")
+    print("[INFO] Shutting down...")
     MODEL_LOADED.set(0)
 
 
