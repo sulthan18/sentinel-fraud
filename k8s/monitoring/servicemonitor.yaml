@@ -1,0 +1,21 @@
+# ServiceMonitor for Sentinel Inference API
+# Configures Prometheus to scrape metrics from inference pods
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sentinel-inference-metrics
+  namespace: default
+  labels:
+    app: sentinel-inference
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: sentinel-ml-inference
+  
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s

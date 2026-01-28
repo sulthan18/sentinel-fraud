@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-consumer
+  labels:
+    app: sentinel-consumer
+    component: data-processor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sentinel-consumer
+  template:
+    metadata:
+      labels:
+        app: sentinel-consumer
+        component: data-processor
+    spec:
+      containers:
+      - name: consumer
+        image: sentinel-consumer:latest
+        imagePullPolicy: IfNotPresent
+        
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "sentinel-redpanda:9092"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: TOPIC_NAME
+          value: "sentinel-transactions"

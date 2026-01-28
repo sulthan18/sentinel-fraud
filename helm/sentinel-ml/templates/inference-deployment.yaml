@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-inference
+  labels:
+    app: {{ .Chart.Name }}-inference
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: ml-api
+spec:
+  replicas: {{ .Values.inference.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}-inference
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}-inference
+        component: ml-api
+      {{- if .Values.monitoring.enabled }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.inference.service.port }}"
+        prometheus.io/path: "/metrics"
+      {{- end }}
+    spec:
+      containers:
+      - name: inference-api
+        image: {{ .Values.inference.image.repository }}:{{ .Values.inference.image.tag }}
+        imagePullPolicy: {{ .Values.inference.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.inference.service.port }}
+          name: http
+          protocol: TCP
+        
+        resources:
+          {{- toYaml .Values.inference.resources | nindent 10 }}
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.inference.service.port }}
+          initialDelaySeconds: {{ .Values.inference.healthCheck.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.inference.healthCheck.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.inference.healthCheck.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.inference.healthCheck.livenessProbe.failureThreshold }}
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.inference.service.port }}
+          initialDelaySeconds: {{ .Values.inference.healthCheck.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.inference.healthCheck.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.inference.healthCheck.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.inference.healthCheck.readinessProbe.failureThreshold }}
+        
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: MODEL_VERSION
+          value: {{ .Values.inference.model.version | quote }}

@@ -1,0 +1,58 @@
+{{- if .Values.redpanda.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-redpanda
+  labels:
+    app: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+      - name: redpanda
+        image: {{ .Values.redpanda.image.repository }}:{{ .Values.redpanda.image.tag }}
+        args:
+          - redpanda
+          - start
+          - --smp
+          - "1"
+          - --memory
+          - "1G"
+          - --overprovisioned
+          - --kafka-addr
+          - internal://0.0.0.0:29092,external://0.0.0.0:9092
+          - --advertise-kafka-addr
+          - internal://{{ .Chart.Name }}-redpanda:29092,external://{{ .Chart.Name }}-redpanda:9092
+        ports:
+        - containerPort: {{ .Values.redpanda.service.kafkaPort }}
+          name: kafka
+        - containerPort: 29092
+          name: kafka-internal
+        resources:
+          {{- toYaml .Values.redpanda.resources | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-redpanda
+  labels:
+    app: redpanda
+spec:
+  type: {{ .Values.redpanda.service.type }}
+  selector:
+    app: redpanda
+  ports:
+  - name: kafka
+    port: {{ .Values.redpanda.service.kafkaPort }}
+    targetPort: {{ .Values.redpanda.service.kafkaPort }}
+  - name: kafka-internal
+    port: 29092
+    targetPort: 29092
+{{- end }}

@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sentinel-ml
+  namespace: argocd
+spec:
+  project: default
+  
+  # Source: GitHub repository
+  source:
+    repoURL: https://github.com/sulthan18/sentinel-fraud
+    targetRevision: develop  # Track develop branch
+    path: helm/sentinel-ml
+    helm:
+      valueFiles:
+        - values.yaml
+  
+  # Destination: Deploy to default namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  
+  # Sync policy: Auto-sync enabled for GitOps
+  syncPolicy:
+    automated:
+      prune: true      # Remove resources when deleted from Git
+      selfHeal: true   # Auto-correct drift
+      allowEmpty: false
+    
+    syncOptions:
+      - CreateNamespace=true
+    
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
