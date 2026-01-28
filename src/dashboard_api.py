@@ -1,7 +1,6 @@
 """
-Sentinel ML - Streamlit Dashboard
-Real-time fraud detection visualization consuming from Inference API
-No Kafka/Docker required - runs standalone with API
+Sentinel ML - Commander Dashboard
+High-performance fraud detection visualization
 """
 
 import streamlit as st
@@ -17,323 +16,350 @@ import numpy as np
 # API Configuration
 API_URL = "http://localhost:8000"
 
-# Page config
+# Page config - MUST be the first Streamlit command
 st.set_page_config(
-    page_title="Sentinel ML - Fraud Detection",
-    page_icon="🛡️",
+    page_title="Sentinel Commander",
+    page_icon="🦅",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
+# --- 🎨 PREMIUM UI STYLING ---
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        padding: 1rem 0;
+    /* Dark Theme & Glassmorphism */
+    .stApp {
+        background-color: #0e1117;
     }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
+    
+    /* Metrics Cards */
+    div[data-testid="metric-container"] {
+        background-color: #1a1c24;
+        border: 1px solid #2d2f36;
+        padding: 15px;
         border-radius: 10px;
-        color: white;
-        text-align: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
     }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        border-color: #4f46e5;
+    }
+    
+    /* Header */
+    .main-header {
+        font-family: 'Inter', sans-serif;
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 2rem;
+        letter-spacing: -1px;
+    }
+    
+    .status-badge {
+        background-color: #059669;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    
+    .status-badge-offline {
+        background-color: #dc2626;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
+        gap: 8px;
+        background-color: #1a1c24;
+        padding: 8px;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 5px;
+        color: #9ca3af;
+        border: none;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #4f46e5;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# --- 🛠️ HELPER FUNCTIONS ---
 
 def generate_synthetic_transaction():
-    """Generate synthetic transaction for testing"""
-    # 90% legitimate, 10% potentially fraudulent
-    is_fraud_sim = random.random() < 0.1
+    """Generate a single optimized synthetic transaction"""
+    is_fraud_sim = random.random() < 0.12  # slightly higher fraud rate for demo
     
     if is_fraud_sim:
-        # Fraudulent pattern: high amount, unusual time
-        amount = random.uniform(500, 2000)
-        hour = random.choice([2, 3, 4, 23, 0, 1])  # Unusual hours
+        amount = random.uniform(500, 5000)
+        hour = random.choice([1, 2, 3, 23, 0]) 
     else:
-        # Normal pattern
-        amount = random.uniform(10, 300)
-        hour = random.choice(range(9, 22))  # Business hours
+        amount = random.uniform(10, 500)
+        hour = random.choice(range(8, 22))
     
-    # Generate PCA components (V1-V28)
+    # Base transaction
     transaction = {
         "time": hour * 3600 + random.randint(0, 3600),
         "amount": round(amount, 2)
     }
     
-    # Add V1-V28 features (synthetic PCA components)
+    # V features
     for i in range(1, 29):
+        # Optimized random generation (faster than gauss for simple mocks if needed, 
+        # but keep gauss for model accuracy)
         if is_fraud_sim:
-            # Outlier values for fraud
-            transaction[f"V{i}"] = random.gauss(0, 3)
+            transaction[f"V{i}"] = random.gauss(0, 4) if i in [3, 4, 10, 11, 12, 14, 17] else random.gauss(0, 1)
         else:
-            # Normal distribution
             transaction[f"V{i}"] = random.gauss(0, 1)
-    
+            
     return transaction
 
-
 def call_inference_api(transaction):
-    """Call the inference API"""
+    """Single API call"""
     try:
-        response = requests.post(
-            f"{API_URL}/predict",
-            json=transaction,
-            timeout=5
-        )
+        response = requests.post(f"{API_URL}/predict", json=transaction, timeout=2)
+        return response.json() if response.status_code == 200 else None
+    except:
+        return None
+
+def call_batch_api(transactions):
+    """🚀 HIGH SPEED BATCH CALL"""
+    try:
+        payload = {"transactions": transactions}
+        response = requests.post(f"{API_URL}/batch_predict", json=payload, timeout=30)
         if response.status_code == 200:
             return response.json()
         else:
+            st.error(f"Batch Error: {response.status_code}")
             return None
     except Exception as e:
-        st.error(f"API Error: {e}")
+        st.error(f"Batch Connection Error: {e}")
         return None
 
-
 def check_api_health():
-    """Check if API is running"""
     try:
-        response = requests.get(f"{API_URL}/health", timeout=2)
-        return response.status_code == 200
+        r = requests.get(f"{API_URL}/health", timeout=1)
+        return r.status_code == 200
     except:
         return False
 
+# --- 💾 SESSION STATE ---
+if 'data' not in st.session_state:
+    st.session_state.data = []
+if 'total_count' not in st.session_state:
+    st.session_state.total_count = 0 
 
-# Initialize session state
-if 'predictions' not in st.session_state:
-    st.session_state.predictions = []
-if 'running' not in st.session_state:
-    st.session_state.running = False
-if 'total_transactions' not in st.session_state:
-    st.session_state.total_transactions = 0
-if 'total_fraud' not in st.session_state:
-    st.session_state.total_fraud = 0
+# --- 📱 UI LAYOUT ---
 
+# Top Bar Status
+api_status = check_api_health()
+status_html = f"""
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div style="font-family: 'Inter'; font-weight: 600; color: #9ca3af;">🦅 SENTINEL COMMANDER v2.0</div>
+    <div>
+        <span class="{'status-badge' if api_status else 'status-badge-offline'}">
+            {'● SYSTEM ONLINE' if api_status else '● SYSTEM OFFLINE'}
+        </span>
+    </div>
+</div>
+"""
+st.markdown(status_html, unsafe_allow_html=True)
 
-# Header
-st.markdown('<div class="main-header">🛡️ Sentinel ML - Real-Time Fraud Detection</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">Fraud Detection Center</div>', unsafe_allow_html=True)
 
-# Sidebar
-with st.sidebar:
-    st.header("⚙️ Configuration")
+# 🚀 ACTION CENTER (Top Controls)
+with st.container():
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
     
-    # API Health Check
-    api_healthy = check_api_health()
-    if api_healthy:
-        st.success("✅ API Connected")
-    else:
-        st.error("❌ API Offline")
-        st.info("Start API: `python -m uvicorn src.inference_api:app --port 8000`")
-    
-    st.divider()
-    
-    # Controls
-    st.header("🎮 Controls")
-    
-    transactions_per_sec = st.slider("Transactions/sec", 1, 10, 2)
-    auto_generate = st.checkbox("Auto-generate transactions", value=False)
-    
-    if st.button("🔄 Clear History"):
-        st.session_state.predictions = []
-        st.session_state.total_transactions = 0
-        st.session_state.total_fraud = 0
-        st.rerun()
-    
-    st.divider()
-    
-    # Manual transaction test
-    st.header("🧪 Manual Test")
-    test_amount = st.number_input("Amount ($)", 10.0, 5000.0, 100.0)
-    if st.button("🚀 Test Transaction"):
-        tx = generate_synthetic_transaction()
-        tx['amount'] = test_amount
-        result = call_inference_api(tx)
-        if result:
-            st.session_state.predictions.append({
-                'timestamp': datetime.now(),
-                'amount': tx['amount'],
-                **result
-            })
-            st.session_state.total_transactions += 1
-            if result['is_fraud']:
-                st.session_state.total_fraud += 1
+    with c1:
+        st.markdown("### ⚡ Quick Actions")
+        if st.button("🚀 Generate 10k Transactions (Batch)", type="primary", use_container_width=True):
+            if not api_status:
+                st.error("API Offline. Start uvicorn first!")
+            else:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Generate 10 batches of 1000
+                total_new = 0
+                batch_size = 1000
+                num_batches = 10
+                
+                start_time = time.time()
+                
+                for i in range(num_batches):
+                    status_text.text(f"Generating Batch {i+1}/{num_batches}...")
+                    
+                    # 1. Create Data
+                    batch_tx = [generate_synthetic_transaction() for _ in range(batch_size)]
+                    
+                    # 2. Call API
+                    result = call_batch_api(batch_tx)
+                    
+                    if result:
+                        predictions = result['predictions']
+                        timestamp_now = datetime.now()
+                        
+                        # Add timestamps spread slightly for realism
+                        new_rows = []
+                        for idx, pred in enumerate(predictions):
+                            # Add some random seconds so they don't all look identical time
+                            t = timestamp_now - timedelta(seconds=random.randint(0, 300))
+                            
+                            row = {
+                                'timestamp': t,
+                                'amount': batch_tx[idx]['amount'],
+                                'fraud_probability': pred['fraud_probability'],
+                                'is_fraud': pred['is_fraud'],
+                                'latency_ms': pred['latency_ms'],
+                                'anomaly_score': pred['anomaly_score']
+                            }
+                            new_rows.append(row)
+                        
+                        st.session_state.data.extend(new_rows)
+                        total_new += len(new_rows)
+                    
+                    progress_bar.progress((i + 1) / num_batches)
+                
+                end_time = time.time()
+                duration = end_time - start_time
+                st.session_state.total_count += total_new
+                st.success(f"✅ Generated {total_new:,} transactions in {duration:.2f}s ({int(total_new/duration)} tx/s)")
+                time.sleep(1)
+                st.rerun()
+
+    with c2:
+        st.markdown("### 🧹 Management")
+        if st.button("🗑️ Clear All Data", use_container_width=True):
+            st.session_state.data = []
+            st.session_state.total_count = 0
             st.rerun()
 
-# Main content
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        label="📊 Total Transactions",
-        value=f"{st.session_state.total_transactions:,}",
-        delta=f"{len(st.session_state.predictions)} in buffer"
-    )
-
-with col2:
-    fraud_count = st.session_state.total_fraud
-    st.metric(
-        label="🚨 Fraud Detected",
-        value=f"{fraud_count:,}",
-        delta=f"{(fraud_count/max(st.session_state.total_transactions, 1)*100):.1f}%"
-    )
-
-with col3:
-    if st.session_state.predictions:
-        avg_latency = np.mean([p['latency_ms'] for p in st.session_state.predictions[-100:]])
-        st.metric(
-            label="⚡ Avg Latency",
-            value=f"{avg_latency:.1f} ms",
-            delta="P95 ready"
-        )
-    else:
-        st.metric(label="⚡ Avg Latency", value="-- ms")
-
-with col4:
-    st.metric(
-        label="🎯 Model Version",
-        value="v1.0",
-        delta="Active"
-    )
-
-st.divider()
-
-# Tabs
-tab1, tab2, tab3 = st.tabs(["📈 Real-Time Dashboard", "📋 Transaction Log", "📊 Analytics"])
-
-with tab1:
-    if len(st.session_state.predictions) > 0:
-        df = pd.DataFrame(st.session_state.predictions[-100:])  # Last 100
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            # Fraud probability over time
-            st.subheader("🎯 Fraud Probability Timeline")
-            fig = px.line(
-                df,
-                x='timestamp',
-                y='fraud_probability',
-                title='Fraud Probability Over Time',
-                color_discrete_sequence=['#1f77b4']
-            )
-            fig.add_hline(y=0.5, line_dash="dash", line_color="red", 
-                         annotation_text="Threshold")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Latency distribution
-            st.subheader("⚡ Latency Distribution")
-            fig = px.histogram(
-                df,
-                x='latency_ms',
-                nbins=30,
-                title='Response Time Distribution',
-                color_discrete_sequence=['#2ca02c']
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col_right:
-            # Fraud vs Legitimate
-            st.subheader("🚨 Fraud Detection Results")
-            fraud_counts = df['is_fraud'].value_counts()
-            fig = go.Figure(data=[go.Pie(
-                labels=['Legitimate', 'Fraud'],
-                values=[
-                    fraud_counts.get(False, 0),
-                    fraud_counts.get(True, 0)
-                ],
-                hole=0.4,
-                marker_colors=['#2ca02c', '#d62728']
-            )])
-            fig.update_layout(title='Transaction Classification')
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Amount vs Probability scatter
-            st.subheader("💰 Amount vs Fraud Risk")
-            fig = px.scatter(
-                df,
-                x='amount',
-                y='fraud_probability',
-                color='is_fraud',
-                size='anomaly_score',
-                title='Transaction Amount vs Fraud Probability',
-                color_discrete_map={True: '#d62728', False: '#2ca02c'},
-                labels={'is_fraud': 'Fraud Detected'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("👆 Generate transactions using the sidebar controls or enable auto-generation!")
-
-with tab2:
-    st.subheader("📋 Recent Transactions")
-    if st.session_state.predictions:
-        df = pd.DataFrame(st.session_state.predictions[-50:])  # Last 50
-        df_display = df[['timestamp', 'amount', 'fraud_probability', 'is_fraud', 'latency_ms']].copy()
-        df_display['timestamp'] = df_display['timestamp'].dt.strftime('%H:%M:%S')
-        df_display['fraud_probability'] = df_display['fraud_probability'].apply(lambda x: f"{x:.1%}")
-        df_display['amount'] = df_display['amount'].apply(lambda x: f"${x:.2f}")
-        df_display['latency_ms'] = df_display['latency_ms'].apply(lambda x: f"{x:.1f}ms")
-        df_display['is_fraud'] = df_display['is_fraud'].apply(lambda x: "🚨 FRAUD" if x else "✅ OK")
-        
-        st.dataframe(
-            df_display.sort_values('timestamp', ascending=False),
-            use_container_width=True,
-            height=400
-        )
-    else:
-        st.info("No transactions yet. Start generating to see data!")
-
-with tab3:
-    st.subheader("📊 Statistical Analytics")
-    
-    if len(st.session_state.predictions) >= 10:
-        df = pd.DataFrame(st.session_state.predictions)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Mean Fraud Probability", f"{df['fraud_probability'].mean():.1%}")
-            st.metric("Max Fraud Probability", f"{df['fraud_probability'].max():.1%}")
-            st.metric("Fraud Detection Rate", f"{(df['is_fraud'].sum() / len(df)):.1%}")
-        
-        with col2:
-            st.metric("Mean Latency", f"{df['latency_ms'].mean():.2f} ms")
-            st.metric("P95 Latency", f"{df['latency_ms'].quantile(0.95):.2f} ms")
-            st.metric("Total Anomalies", f"{df['is_anomaly'].sum()}")
-    else:
-        st.info("Need at least 10 transactions for analytics")
-
-# Auto-generate transactions
-if auto_generate and api_healthy:
-    placeholder = st.empty()
-    
-    with placeholder.container():
-        st.info(f"🔄 Auto-generating {transactions_per_sec} transactions/sec...")
-        
-        for _ in range(transactions_per_sec):
+    with c3:
+        st.markdown("### 🧪 Simulation")
+        auto_run = st.toggle("Auto-Stream (10 tx/s)")
+        if auto_run and api_status:
+            # Generate small batch quickly
             tx = generate_synthetic_transaction()
-            result = call_inference_api(tx)
-            
-            if result:
-                st.session_state.predictions.append({
+            res = call_inference_api(tx)
+            if res:
+                st.session_state.data.append({
                     'timestamp': datetime.now(),
                     'amount': tx['amount'],
-                    **result
+                    **res
                 })
-                st.session_state.total_transactions += 1
-                if result['is_fraud']:
-                    st.session_state.total_fraud += 1
-        
-        time.sleep(1)
-        st.rerun()
+                st.session_state.total_count += 1
+                time.sleep(0.1) # throttle slightly
+                st.rerun()
 
-# Footer
+# 📊 STATS OVERVIEW
+df = pd.DataFrame(st.session_state.data)
+
+if not df.empty:
+    m1, m2, m3, m4 = st.columns(4)
+    
+    total_tx = len(df)
+    fraud_tx = df['is_fraud'].sum()
+    fraud_rate = (fraud_tx / total_tx) * 100
+    avg_latency = df['latency_ms'].mean()
+    total_volume = df['amount'].sum()
+    
+    with m1:
+        st.metric("Total Traffic", f"{total_tx:,}", "Transactions")
+    with m2:
+        st.metric("Fraud Detected", f"{fraud_tx:,}", f"{fraud_rate:.2f}% Rate", delta_color="inverse")
+    with m3:
+        st.metric("System Latency", f"{avg_latency:.1f}ms", "P95 < 50ms")
+    with m4:
+        st.metric("Volume Processed", f"${total_volume:,.0f}", "USD")
+
+
 st.divider()
-st.caption("🛡️ Sentinel ML - Production Fraud Detection System | Powered by FastAPI + XGBoost + Isolation Forest")
+
+# 📈 VISUALIZATION TABS
+tab1, tab2, tab3 = st.tabs(["🌩️ Live Monitoring", "🔎 Investigation", "🔬 Model Metrics"])
+
+with tab1:
+    if not df.empty:
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("#### 🌊 Transaction Velocity & Fraud Spikes")
+            # Resample for cleaner graph if too many points
+            chart_df = df.copy()
+            chart_df = chart_df.sort_values('timestamp')
+            
+            # Simple line chart
+            fig = px.scatter(chart_df, x='timestamp', y='amount', 
+                             color='is_fraud', 
+                             color_discrete_map={True: '#ef4444', False: '#10b981'},
+                             title="Real-time Transaction Stream",
+                             height=400)
+            fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e5e7eb")
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col2:
+            st.markdown("#### 🚨 Risk Distribution")
+            fig2 = px.histogram(df, x='fraud_probability', nbins=20, 
+                                title="Fraud Probability Histogram",
+                                color_discrete_sequence=['#6366f1'])
+            fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e5e7eb")
+            st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("Awaiting data stream... Click 'Generate 10k Transactions' to start.")
+
+with tab2:
+    if not df.empty:
+        st.markdown("#### 📋 Suspicious Transactions (High Risk)")
+        high_risk = df[df['fraud_probability'] > 0.5].sort_values('fraud_probability', ascending=False)
+        
+        st.dataframe(
+            high_risk[['timestamp', 'amount', 'fraud_probability', 'is_fraud', 'anomaly_score']],
+            use_container_width=True,
+            column_config={
+                "fraud_probability": st.column_config.ProgressColumn(
+                    "Risk Score",
+                    format="%.2f",
+                    min_value=0,
+                    max_value=1,
+                ),
+                "amount": st.column_config.NumberColumn(
+                    "Amount",
+                    format="$%.2f"
+                )
+            }
+        )
+    else:
+        st.write("No high risk transactions found yet.")
+
+with tab3:
+    if not df.empty:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### ⚡ Latency Performance")
+            fig_lat = px.line(df, y='latency_ms', title="API Response Time (ms)")
+            fig_lat.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e5e7eb")
+            st.plotly_chart(fig_lat, use_container_width=True)
+        with c2:
+            st.markdown("#### 🤖 Anomaly Scores")
+            fig_anom = px.scatter(df, x='amount', y='anomaly_score', color='is_fraud',
+                                  title="Isolation Forest Anomaly Map")
+            fig_anom.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e5e7eb")
+            st.plotly_chart(fig_anom, use_container_width=True)
