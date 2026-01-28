@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+pip install pyzmq pandas
+echo Starting Producer (Module Mode)...
+python -m src.producer
+pause

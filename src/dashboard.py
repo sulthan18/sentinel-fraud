@@ -1,115 +1,112 @@
-
-import time
-import pandas as pd
-import plotly.express as px
+"""
+Sentinel Commander - Streaming Dashboard (SQLite Edition)
+Modern UI reading from real-time Database stream.
+"""
 import streamlit as st
+import pandas as pd
+import sqlite3
+import time
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 
-# Import modules
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+st.set_page_config(page_title="Sentinel Commander", page_icon="🦅", layout="wide", initial_sidebar_state="collapsed")
 
-from src.database import init_db, get_stats, get_recent_predictions
-
-# Page Config
-st.set_page_config(
-    page_title="SentinelStream | Fraud Detection",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS
+# --- 🎨 MODERN UI STYLING (Same as v3.0) ---
 st.markdown("""
 <style>
-    .reportview-container {
-        background: #0e1117;
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
+    .stApp { background-color: #050509; color: white; }
+    
+    div[data-testid="metric-container"] {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
     }
-    .stDataFrame {
-        border: 1px solid #41424b;
+    
+    .hero-header {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff 30%, #6366f1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize DB
-init_db()
+DB_PATH = "sentinel.db"
 
-# --- Sidebar ---
-st.sidebar.title("🛡️ SentinelStream")
-st.sidebar.markdown("---")
+def load_data():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        # Get last 2000 transactions
+        df = pd.read_sql_query("SELECT * FROM transactions ORDER BY timestamp DESC LIMIT 2000", conn)
+        conn.close()
+        # Convert timestamp
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+    except:
+        return pd.DataFrame()
 
-# Refresh rate
-refresh_rate = st.sidebar.slider("Refresh Rate (seconds)", 1, 10, 2)
-st.sidebar.markdown("---")
-st.sidebar.info("💡 Consumer must be running separately to populate data.")
+# AUTO REFRESH LOGIC
+if 'last_run' not in st.session_state:
+    st.session_state.last_run = time.time()
 
-# --- Main Layout ---
-st.title("Real-Time Transaction Monitor")
+# Header
+c1, c2 = st.columns([3, 1])
+with c1:
+    st.markdown('<div class="hero-header">SENTINEL STREAM</div>', unsafe_allow_html=True)
+    st.caption("Architecture: Producer ➔ ZeroMQ ➔ Consumer ➔ SQLite ➔ Dashboard")
+with c2:
+    st.markdown("""
+    <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #10b981; padding: 10px; border-radius: 12px; text-align: center; font-weight: 600;">
+        ● STREAMING LIVE
+    </div>
+    """, unsafe_allow_html=True)
 
-col1, col2, col3, col4, col5 = st.columns(5)
+# LOAD DATA
+df = load_data()
 
-# Fetch latest stats from DB
-stats = get_stats()
-total = stats['total']
-fraud = stats['fraud']
-avg_latency = stats['avg_latency']
-rate = (fraud / total * 100) if total > 0 else 0
-
-# Display metrics
-col1.metric("Processed", f"{total:,}")
-col2.metric("Fraud Detected", f"{fraud:,}", delta_color="inverse")
-col3.metric("Fraud Rate", f"{rate:.2f}%")
-col4.metric("Avg Latency", f"{avg_latency:.2f} ms")
-col5.metric("System Status", "🟢 ACTIVE")
-
-# Placeholders for charts
-row2_col1, row2_col2 = st.columns([2, 1])
-
-with row2_col1:
-    st.subheader("Live Transaction Feed")
+if not df.empty:
+    m1, m2, m3, m4 = st.columns(4)
     
-    # Fetch recent rows for Table
-    rows = get_recent_predictions(limit=20)
-    if rows:
-        df = pd.DataFrame(rows)
-        
-        # Format for display
-        df['Time'] = pd.to_datetime(df['processing_time']).dt.strftime('%H:%M:%S')
-        df['Amount'] = df['amount'].apply(lambda x: f"${x:.2f}")
-        df['Prob'] = df['fraud_probability'].apply(lambda x: f"{x:.4f}")
-        df['Latency'] = df['latency_ms'].apply(lambda x: f"{x:.1f}ms")
-        df['Status'] = df['is_fraud'].apply(lambda x: '🚨 FRAUD' if x else '✅ OK')
-        
-        st.dataframe(
-            df[['Time', 'transaction_id', 'Amount', 'Status', 'Prob', 'Latency']], 
-            height=400,
-            hide_index=True
-        )
-    else:
-        st.info("No transactions yet. Make sure the consumer is running.")
-
-with row2_col2:
-    st.subheader("System Performance")
+    total = len(df)
+    fraud = df['is_fraud'].sum()
+    rate = (fraud/total)*100
+    avg_lat = df['latency_ms'].mean() if 'latency_ms' in df.columns else 0
     
-    # Update Chart (Latency)
-    chart_rows = get_recent_predictions(limit=50)
-    if chart_rows:
-        df_chart = pd.DataFrame(chart_rows)
-        # Reverse to show chronological order left-to-right
-        df_chart = df_chart.iloc[::-1].reset_index(drop=True)
-        
-        fig = px.line(
-            df_chart, 
-            y='latency_ms', 
-            title="Inference Latency (ms)",
-            markers=True
-        )
-        fig.update_layout(yaxis_title="Latency (ms)", xaxis_title="Transaction Stream")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Waiting for data...")
+    with m1: st.metric("Buffer Size", f"{total}", "Rows")
+    with m2: st.metric("Fraud Detected", f"{fraud}", f"{rate:.1f}%")
+    with m3: st.metric("Live Latency", f"{avg_lat:.1f}ms")
+    with m4: st.metric("Status", "ACTIVE", "Consumer Running")
+    
+    # CHARTS
+    tab1, tab2 = st.tabs(["🌩️ Live Monitor", "🚨 Fraud List"])
+    
+    with tab1:
+        col_chart1, col_chart2 = st.columns([2, 1])
+        with col_chart1:
+            fig = px.scatter(df, x='timestamp', y='amount', color='is_fraud',
+                             color_discrete_map={1: '#ef4444', 0: '#6366f1'},
+                             size='amount', size_max=15, title="Transaction Stream")
+            fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#cbd5e1")
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col_chart2:
+            fig2 = px.histogram(df, x='fraud_prob', nbins=20, title="Risk Distribution",
+                                color_discrete_sequence=['#8b5cf6'])
+            fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#cbd5e1")
+            st.plotly_chart(fig2, use_container_width=True)
+            
+    with tab2:
+        st.dataframe(df[df['is_fraud']==1].head(100), use_container_width=True)
 
-# Auto-refresh
-time.sleep(refresh_rate)
+else:
+    st.info("Waiting for Consumer data... Run `python src/consumer.py`")
+
+# Auto-rerun for streaming effect
+time.sleep(1)
 st.rerun()
-

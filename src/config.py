@@ -17,6 +17,7 @@ CLOUD_SASL_PASSWORD = os.getenv("CLOUD_SASL_PASSWORD", "")
 
 # Topic Configuration
 TOPIC_NAME = os.getenv("TOPIC_NAME", "transaction-stream")
+TRANSACTIONS_TOPIC = TOPIC_NAME  # Alias for streaming scripts
 
 # Producer Settings
 RATE_LIMIT = int(os.getenv("RATE_LIMIT", "10"))  # Transactions per second
@@ -26,6 +27,10 @@ BATCH_SIZE = int(os.getenv("BATCH_SIZE", "100"))  # Messages before flush
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 CSV_PATH = os.getenv("CSV_PATH", os.path.join(DATA_DIR, "creditcard.csv"))
+
+# Broker URL alias for scripts
+KAFKA_BROKER_URL = LOCAL_BOOTSTRAP_SERVERS
+
 
 
 def get_kafka_config():

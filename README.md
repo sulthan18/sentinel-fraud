@@ -74,6 +74,35 @@ kubectl port-forward svc/argocd-server 8080:443 -n argocd
 # → http://localhost:8080
 ```
 
+
+## 🎬 Killer Demo: Auto-Scaling Under Load
+
+**See Kubernetes HPA in action!** Watch pods automatically scale from 2 → 10 under 10,000+ req/s.
+
+```bash
+# 1. Deploy to K8s
+.\scripts\setup-k8s.ps1
+
+# 2. Open Grafana
+kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+
+# 3. Port-forward API
+kubectl port-forward svc/sentinel-ml-inference 8000:8000
+
+# 4. Run load test
+pip install -r loadtest/requirements.txt
+locust -f loadtest/locustfile.py --host=http://localhost:8000
+
+# 5. Watch magic happen!
+kubectl get hpa -w  # See auto-scaling in real-time
+```
+
+**Expected**: System handles 10K+ req/s, pods scale 2→10, P95 latency <50ms
+
+📖 **Full demo guide**: [DEMO.md](DEMO.md)
+
+---
+
 ## 📊 Load Testing
 
 ```bash

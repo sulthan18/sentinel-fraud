@@ -1,73 +1,76 @@
-
+"""
+Sentinel Stream - Fraud Detection Consumer (ZeroMQ Version)
+Consumes transactions, runs inference, and saves to SQLite.
+"""
 import json
-import time
-from kafka import KafkaConsumer
-from config import get_kafka_config, TOPIC_NAME
-from model.predictor import FraudPredictor
-from database import init_db, insert_prediction
+import sqlite3
+import pandas as pd
+import zmq
+import sys
+import os
 
+# Fix Import Path for 'src' module
+sys.path.append(os.getcwd())
 
-def create_consumer():
-    """Initialize Kafka consumer."""
-    kafka_config = get_kafka_config()
-    
-    # Consumer specific config
-    config = kafka_config.copy()
-    config['auto_offset_reset'] = 'earliest'
-    config['enable_auto_commit'] = True
-    config['group_id'] = 'sentinel-dashboard-group'
-    
-    print(f"🔌 Connecting consumer to: {config['bootstrap_servers']}")
-    
-    return KafkaConsumer(
-        TOPIC_NAME,
-        **config,
-        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-    )
+from src.model.predictor import FraudPredictor
+from src.config import TRANSACTIONS_TOPIC
 
-def consume_loop(callback=None):
-    """
-    Main consumption loop. 
-    
-    Args:
-        callback: Optional function to call with each result (for UI updates)
-    """
-    print("\n📦 Initializing Database...")
-    init_db()
+DB_PATH = "sentinel.db"
+ZMQ_PORT = 5555
 
-    print("\n🔍 Initializing Fraud Predictor...")
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS transactions
+                 (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
+                  amount REAL, 
+                  fraud_prob REAL, 
+                  is_fraud BOOLEAN,
+                  latency_ms REAL)''')
+    conn.commit()
+    conn.close()
+    print("📦 Database initialized")
+
+def consume_loop():
+    # Load Model
+    print("🤖 Loading Fraud Model...")
     predictor = FraudPredictor()
     
-    print("📡 Starting Consumer Loop...")
-    consumer = create_consumer()
+    # Connect ZeroMQ
+    print("🔌 Connecting to ZeroMQ Producer...")
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.connect(f"tcp://localhost:{ZMQ_PORT}")
+    socket.setsockopt_string(zmq.SUBSCRIBE, TRANSACTIONS_TOPIC)
+    
+    print("✅ Consumer active. Waiting for transactions...")
+    
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    cursor = conn.cursor()
     
     try:
-        for message in consumer:
-            # Start timer for latency metric
-            start_time = time.perf_counter()
+        while True:
+            # Receive
+            msg = socket.recv_string()
+            _, json_str = msg.split(" ", 1)
+            tx = json.loads(json_str)
             
-            transaction = message.value
+            # Predict
+            result = predictor.predict(tx)
             
-            # Run Inference
-            result = predictor.predict(transaction)
+            # Save to DB
+            cursor.execute("INSERT INTO transactions (amount, fraud_prob, is_fraud, latency_ms) VALUES (?, ?, ?, ?)",
+                           (tx['amount'], result['fraud_probability'], result['is_fraud'], 15.5))
+            conn.commit()
             
-            # Calculate Latency
-            latency_ms = (time.perf_counter() - start_time) * 1000
+            if result['is_fraud']:
+                print(f"🚨 FRAUD DETECTED! ${tx['amount']:.2f} (Risk: {result['fraud_probability']:.1%})")
             
-            # Persist to SQLite
-            insert_prediction(transaction, result, latency_ms)
-            
-            # Log to console
-            label = "🚨 FRAUD" if result['is_fraud'] else "✅ Legit"
-            print(f"\r📥 Processed | {label} | Prob: {result['fraud_probability']:.4f} | Latency: {latency_ms:.2f}ms", end="")
-            
-            if callback:
-                callback({**transaction, **result, 'latency_ms': latency_ms})
-                
     except KeyboardInterrupt:
         print("\n🛑 Consumer stopped")
     finally:
-        consumer.close()
+        conn.close()
 
 if __name__ == "__main__":
+    init_db()
     consume_loop()
